@@ -1,0 +1,1282 @@
+<title>Plate Ledger Local</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#c4551d">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Plate Ledger">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+  :root{
+    --paper:#f5f2ec; --surface:#ffffff; --surface-2:#eef1f2; --surface-3:#e5eaec;
+    --ink:#16202b; --ink-dim:#5b6b74; --line:#dde2e4;
+    --steel-700:#33495a; --steel-500:#5b7590;
+    --accent:#c4551d; --accent-ink:#fffaf6; --accent-soft:#f3e2d4;
+    --good:#2f7d5b; --good-bg:#e3f1ea;
+    --warn:#8a6300; --warn-bg:#fbf0d9;
+    --crit:#b3261e; --crit-bg:#fbe4e2;
+    --shadow: 0 1px 2px rgba(22,32,43,.05), 0 1px 1px rgba(22,32,43,.04);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#10161d; --surface:#182129; --surface-2:#1f2932; --surface-3:#26313b;
+      --ink:#e7ebee; --ink-dim:#93a1aa; --line:#2c3942;
+      --steel-700:#c9d4dc; --steel-500:#93a7b8;
+      --accent:#e2712f; --accent-ink:#1a1108; --accent-soft:#3a2517;
+      --good:#7bd3a6; --good-bg:#163326;
+      --warn:#e6bd4a; --warn-bg:#332705;
+      --crit:#f2948c; --crit-bg:#3a1a17;
+      --shadow: 0 1px 2px rgba(0,0,0,.35), 0 1px 1px rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#10161d; --surface:#182129; --surface-2:#1f2932; --surface-3:#26313b;
+    --ink:#e7ebee; --ink-dim:#93a1aa; --line:#2c3942;
+    --steel-700:#c9d4dc; --steel-500:#93a7b8;
+    --accent:#e2712f; --accent-ink:#1a1108; --accent-soft:#3a2517;
+    --good:#7bd3a6; --good-bg:#163326;
+    --warn:#e6bd4a; --warn-bg:#332705;
+    --crit:#f2948c; --crit-bg:#3a1a17;
+    --shadow: 0 1px 2px rgba(0,0,0,.35), 0 1px 1px rgba(0,0,0,.3);
+  }
+
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:'IBM Plex Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased;}
+  h1,h2,h3{font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.02em;margin:0;text-wrap:balance;}
+  .num,input,select,textarea,button{font-variant-numeric:tabular-nums;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  button{font-family:inherit;}
+
+  #app{min-height:100vh;display:flex;flex-direction:column;}
+
+  .topbar{position:sticky;top:0;z-index:30;background:var(--surface);border-bottom:1px solid var(--line);
+    padding:14px 20px;display:flex;align-items:baseline;justify-content:space-between;gap:12px;}
+  .topbar h1{font-size:1.15rem;color:var(--steel-700);}
+  .topbar h1 span{color:var(--accent);}
+  .topbar .status-line{font-size:.68rem;color:var(--ink-dim);text-align:right;white-space:nowrap;}
+
+  #view{flex:1;max-width:640px;width:100%;margin:0 auto;padding:18px 16px 100px;}
+  @media (min-width:480px){ #view{padding:20px 24px 104px;} }
+
+  .bottomnav{position:fixed;bottom:0;left:0;right:0;z-index:40;background:var(--surface);
+    border-top:1px solid var(--line);display:flex;justify-content:space-around;
+    padding:6px 4px calc(6px + env(safe-area-inset-bottom));}
+  .bottomnav button{display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:none;
+    color:var(--ink-dim);font-size:.65rem;letter-spacing:.02em;padding:5px 10px;border-radius:10px;cursor:pointer;
+    min-width:56px;}
+  .bottomnav button svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;}
+  .bottomnav button.active{color:var(--accent);}
+  .bottomnav button:active{background:var(--surface-2);}
+
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:var(--shadow);}
+  .section-title{font-size:.95rem;color:var(--ink-dim);margin:22px 0 10px;display:flex;align-items:center;justify-content:space-between;}
+  .section-title:first-child{margin-top:0;}
+
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:6px;}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;box-shadow:var(--shadow);}
+  .stat .num{display:block;font-family:'IBM Plex Mono',monospace;font-size:1.5rem;font-weight:600;color:var(--steel-700);line-height:1.15;}
+  .stat .label{font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-dim);}
+  .stat.accent .num{color:var(--accent);}
+
+  .status{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:.68rem;font-weight:600;white-space:nowrap;}
+  .status::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;}
+  .status-good{background:var(--good-bg);color:var(--good);}
+  .status-warn{background:var(--warn-bg);color:var(--warn);}
+  .status-crit{background:var(--crit-bg);color:var(--crit);}
+  .status-progress{background:var(--accent-soft);color:var(--accent);}
+  .status-neutral{background:var(--surface-2);color:var(--ink-dim);}
+
+  .row{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .muted{color:var(--ink-dim);}
+  .small{font-size:.78rem;}
+  .tiny{font-size:.7rem;}
+
+  .empty{text-align:center;padding:36px 16px;color:var(--ink-dim);}
+  .empty svg{width:40px;height:40px;stroke:var(--steel-500);fill:none;stroke-width:1.4;margin-bottom:10px;}
+  .empty p{margin:4px 0 16px;font-size:.88rem;}
+
+  .btn{font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.03em;font-size:.78rem;
+    padding:11px 18px;border-radius:9px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);
+    cursor:pointer;display:inline-flex;align-items:center;gap:6px;justify-content:center;}
+  .btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;}
+  .btn-primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);}
+  .btn-ghost{background:transparent;}
+  .btn-danger{color:var(--crit);border-color:var(--crit);background:transparent;}
+  .btn-block{width:100%;}
+  .btn-sm{padding:7px 12px;font-size:.7rem;}
+  .btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;}
+
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;}
+  .field label{font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-dim);font-weight:600;}
+  input,select,textarea{font-size:.95rem;padding:9px 10px;border:1px solid var(--line);border-radius:9px;
+    background:var(--surface);color:var(--ink);width:100%;}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent);}
+  textarea{resize:vertical;min-height:52px;font-family:inherit;}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .hint{font-size:.72rem;color:var(--ink-dim);margin-top:-6px;margin-bottom:10px;}
+  .form-card{background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px;}
+
+  .output-row{display:grid;grid-template-columns:1fr 62px 68px auto;gap:6px;align-items:center;margin-bottom:8px;}
+  .output-row button{background:transparent;border:1px solid var(--line);border-radius:8px;color:var(--crit);
+    width:34px;height:34px;cursor:pointer;font-size:1rem;line-height:1;}
+
+  .item{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;background:var(--surface);cursor:pointer;}
+  .item:active{background:var(--surface-2);}
+  .item .top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;}
+  .item .size{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:.92rem;color:var(--steel-700);}
+  .item .proj{color:var(--accent);font-weight:600;}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
+  .chip{background:var(--surface-2);border-radius:999px;padding:3px 10px;font-size:.7rem;color:var(--ink-dim);}
+  .chip b{color:var(--ink);font-weight:600;}
+
+  .barrow{display:grid;grid-template-columns:96px 1fr 46px;gap:10px;align-items:center;margin-bottom:10px;}
+  .barrow .name{font-size:.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .barrow .track{background:var(--surface-3);border-radius:6px;height:14px;overflow:hidden;}
+  .barrow .fill{height:100%;background:var(--accent);border-radius:6px;}
+  .barrow .val{font-family:'IBM Plex Mono',monospace;font-size:.75rem;text-align:right;color:var(--ink-dim);}
+
+  select#filter-project{max-width:160px;}
+
+  .modal-overlay{position:fixed;inset:0;background:rgba(16,22,29,.5);z-index:60;display:flex;align-items:flex-end;justify-content:center;}
+  @media (min-width:560px){ .modal-overlay{align-items:center;} }
+  .modal{background:var(--surface);border-radius:16px 16px 0 0;padding:18px;width:100%;max-width:560px;max-height:88vh;overflow:auto;box-shadow:var(--shadow);}
+  @media (min-width:560px){ .modal{border-radius:16px;} }
+
+  #toast{position:fixed;left:50%;bottom:78px;transform:translateX(-50%);background:var(--ink);color:var(--paper);
+    padding:9px 16px;border-radius:999px;font-size:.8rem;z-index:80;opacity:0;pointer-events:none;transition:opacity .2s ease;}
+  #toast.show{opacity:1;}
+
+  ::placeholder{color:var(--ink-dim);opacity:.6;}
+</style>
+
+<div id="app">
+  <header class="topbar">
+    <h1>Plate<span>·</span>Ledger</h1>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+      <button id="install-btn" class="btn btn-sm btn-primary" hidden>
+        <svg viewBox="0 0 24 24"><path d="M12 4v11M7.5 11 12 15.5 16.5 11"/><path d="M5 18h14"/></svg>
+        Install
+      </button>
+      <div class="status-line" id="status-line">loading…</div>
+    </div>
+  </header>
+
+  <main id="view"></main>
+
+  <nav class="bottomnav" id="bottomnav">
+    <button data-tab="home" class="active">
+      <svg viewBox="0 0 24 24"><path d="M4 11.5 12 4l8 7.5"/><path d="M6 10v9h12v-9"/><path d="M10 19v-5h4v5"/></svg>
+      Home
+    </button>
+    <button data-tab="purchase">
+      <svg viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="13" rx="1.5"/><path d="M8 7V6a4 4 0 0 1 8 0v1"/><path d="M12 11v5M9.5 13.5h5"/></svg>
+      Purchase
+    </button>
+    <button data-tab="cut">
+      <svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.4"/><circle cx="6" cy="18" r="2.4"/><path d="M20 5 7.5 15M8.5 9 20 19"/></svg>
+      Cut
+    </button>
+    <button data-tab="demand">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.2"/><circle cx="12" cy="12" r="4.6"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></svg>
+      Demand
+    </button>
+    <button data-tab="stock">
+      <svg viewBox="0 0 24 24"><path d="M4 7l8-3 8 3-8 3-8-3Z"/><path d="M4 12l8 3 8-3M4 17l8 3 8-3"/></svg>
+      Stock
+    </button>
+    <button data-tab="reports">
+      <svg viewBox="0 0 24 24"><path d="M5 19V10M11 19V5M17 19v-7"/><path d="M3 19h18"/></svg>
+      Reports
+    </button>
+  </nav>
+</div>
+
+<datalist id="dl-projects"></datalist>
+<datalist id="dl-categories"></datalist>
+<div id="modal-root"></div>
+<div id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- state ----------
+  var purchases = [];
+  var cuts = [];
+  var demands = [];
+  var currentTab = 'home';
+  var dbAvailable = null; // null=unknown, true/false once resolved
+  var db = null;
+  var projectFilter = '';
+
+  // ---------- helpers ----------
+  function uid(){ return 'id' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+  function todayStr(){ var d=new Date(); return d.toISOString().slice(0,10); }
+  function fmtDate(s){
+    if(!s) return '—';
+    var d = new Date(s + 'T00:00:00');
+    if(isNaN(d)) return s;
+    return d.toLocaleDateString(undefined,{day:'2-digit',month:'short',year:'numeric'});
+  }
+  function trimNum(n){
+    n = Number(n);
+    if(Number.isNaN(n)) return '';
+    return (Math.round(n*100)/100).toString();
+  }
+  function esc(s){
+    return String(s==null?'':s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+  function sizeLabel(p){
+    return trimNum(p.thickness) + ' × ' + trimNum(p.width) + ' × ' + trimNum(p.length) + ' mm';
+  }
+  function plateWeightKg(t,w,l){
+    var vol = Number(t)*Number(w)*Number(l); // mm^3
+    if(!vol || Number.isNaN(vol)) return 0;
+    return vol * 7.85 / 1e6; // density of mild/HR steel ~7.85 g/cm3
+  }
+  function usedFor(purchaseId, excludeCutId){
+    var sum = 0;
+    cuts.forEach(function(c){
+      if(c.purchaseId === purchaseId && c.id !== excludeCutId) sum += Number(c.platesUsed)||0;
+    });
+    return sum;
+  }
+  function remainingFor(p, excludeCutId){
+    return (Number(p.qty)||0) - usedFor(p.id, excludeCutId);
+  }
+  function statusFor(remaining){
+    if(remaining <= 0) return {label:'Out of stock', cls:'status-crit'};
+    if(remaining <= 2) return {label:'Low stock', cls:'status-warn'};
+    return {label:'In stock', cls:'status-good'};
+  }
+  function distinctProjects(){
+    var s = {};
+    purchases.forEach(function(p){ if(p.project) s[p.project]=1; });
+    cuts.forEach(function(c){ if(c.project) s[c.project]=1; });
+    demands.forEach(function(d){ if(d.project) s[d.project]=1; });
+    return Object.keys(s).sort(function(a,b){return a.localeCompare(b);});
+  }
+  function distinctCategories(){
+    var s = {};
+    cuts.forEach(function(c){ (c.outputs||[]).forEach(function(o){ if(o.category) s[o.category]=1; }); });
+    demands.forEach(function(d){ if(d.category) s[d.category]=1; });
+    return Object.keys(s).sort(function(a,b){return a.localeCompare(b);});
+  }
+  function purchaseById(id){
+    for(var i=0;i<purchases.length;i++) if(purchases[i].id===id) return purchases[i];
+    return null;
+  }
+  function demandById(id){
+    for(var i=0;i<demands.length;i++) if(demands[i].id===id) return demands[i];
+    return null;
+  }
+  function normKey(s){ return String(s==null?'':s).trim().toLowerCase(); }
+  function demandCutQty(d){
+    var proj = normKey(d.project), cat = normKey(d.category);
+    var sum = 0;
+    cuts.forEach(function(c){
+      if(normKey(c.project) !== proj) return;
+      (c.outputs||[]).forEach(function(o){
+        if(o.unit==='pcs' && normKey(o.category)===cat) sum += Number(o.qty)||0;
+      });
+    });
+    return sum;
+  }
+  function demandCompleted(d){
+    return (Number(d.manualCompleted)||0) + demandCutQty(d);
+  }
+  function demandStatus(completed, needed){
+    if(needed>0 && completed>=needed) return {label: completed>needed?'Exceeded':'Complete', cls:'status-good'};
+    if(completed<=0) return {label:'Not started', cls:'status-neutral'};
+    return {label:'In progress', cls:'status-progress'};
+  }
+  function demandSizeTitle(d){
+    var parts = [];
+    if(d.thickness) parts.push(trimNum(d.thickness)+'mm');
+    parts.push(d.category||'—');
+    return parts.join(' ');
+  }
+  function demandSizeSub(d){
+    if(d.pieceWidth && d.pieceLength) return trimNum(d.pieceWidth)+' × '+trimNum(d.pieceLength)+' mm';
+    return '';
+  }
+  function toast(msg){
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toast._h);
+    toast._h = setTimeout(function(){ t.classList.remove('show'); }, 1800);
+  }
+  function icon(name){
+    var icons = {
+      box:'<svg viewBox="0 0 24 24"><path d="M3 8l9-4 9 4-9 4-9-4Z"/><path d="M3 8v8l9 4 9-4V8"/><path d="M12 12v8"/></svg>',
+      scissors:'<svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.4"/><circle cx="6" cy="18" r="2.4"/><path d="M20 5 7.5 15M8.5 9 20 19"/></svg>',
+      layers:'<svg viewBox="0 0 24 24"><path d="M4 7l8-3 8 3-8 3-8-3Z"/><path d="M4 12l8 3 8-3M4 17l8 3 8-3"/></svg>',
+      chart:'<svg viewBox="0 0 24 24"><path d="M5 19V10M11 19V5M17 19v-7"/><path d="M3 19h18"/></svg>',
+      plus:'<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+      target:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.2"/><circle cx="12" cy="12" r="4.6"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></svg>'
+    };
+    return icons[name] || '';
+  }
+
+  // ---------- data layer (db capability with localStorage fallback) ----------
+  var LS_KEY = 'plate-ledger-v1';
+  function localLoad(){
+    try{
+      var raw = localStorage.getItem(LS_KEY);
+      if(raw) return JSON.parse(raw);
+    }catch(e){}
+    return {purchases:[], cuts:[], demands:[]};
+  }
+  function localSave(){
+    try{ localStorage.setItem(LS_KEY, JSON.stringify({purchases:purchases, cuts:cuts, demands:demands})); }catch(e){}
+  }
+
+  function refreshDatalists(){
+    var dp = document.getElementById('dl-projects');
+    var dc = document.getElementById('dl-categories');
+    dp.innerHTML = distinctProjects().map(function(p){ return '<option value="'+esc(p)+'">'; }).join('');
+    dc.innerHTML = distinctCategories().map(function(c){ return '<option value="'+esc(c)+'">'; }).join('');
+  }
+
+  function onDataChanged(){
+    refreshDatalists();
+    renderCurrentList();
+  }
+
+  function renderCurrentList(){
+    if(currentTab==='home') renderHome();
+    else if(currentTab==='purchase') renderPurchaseList();
+    else if(currentTab==='cut') renderCutList();
+    else if(currentTab==='stock') renderStock();
+    else if(currentTab==='reports') renderReports();
+    else if(currentTab==='demand'){ updateDemandFilterOptions(); renderDemandList(); }
+  }
+
+  function setStatusLine(){
+    var el = document.getElementById('status-line');
+    if(dbAvailable === true) el.textContent = 'Synced to your account';
+    else if(dbAvailable === false) el.textContent = 'Saved on this device only';
+    else el.textContent = '';
+  }
+
+  async function initData(){
+    try{
+      db = await claude.use('db');
+    }catch(e){ db = null; }
+
+    if(db){
+      dbAvailable = true;
+      setStatusLine();
+      db.collection('purchases').onSnapshot(function(snap){
+        purchases = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
+        onDataChanged();
+      }, function(err){ console.log('purchases sub error', err); });
+      db.collection('cuts').onSnapshot(function(snap){
+        cuts = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
+        onDataChanged();
+      }, function(err){ console.log('cuts sub error', err); });
+      db.collection('demands').onSnapshot(function(snap){
+        demands = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
+        onDataChanged();
+      }, function(err){ console.log('demands sub error', err); });
+    } else {
+      dbAvailable = false;
+      setStatusLine();
+      var local = localLoad();
+      purchases = local.purchases || [];
+      cuts = local.cuts || [];
+      demands = local.demands || [];
+      onDataChanged();
+    }
+  }
+
+  var dataApi = {
+    addPurchase: async function(data){
+      if(db){ await db.collection('purchases').add(data); }
+      else {
+        data = Object.assign({id:uid()}, data);
+        purchases.push(data);
+        localSave(); onDataChanged();
+      }
+    },
+    updatePurchase: async function(id, data){
+      if(db){ await db.doc('purchases/'+id).update(data); }
+      else {
+        var p = purchaseById(id);
+        if(p) Object.assign(p, data);
+        localSave(); onDataChanged();
+      }
+    },
+    deletePurchase: async function(id){
+      if(db){ await db.doc('purchases/'+id).delete(); }
+      else {
+        purchases = purchases.filter(function(p){ return p.id!==id; });
+        localSave(); onDataChanged();
+      }
+    },
+    addCut: async function(data){
+      if(db){ await db.collection('cuts').add(data); }
+      else {
+        data = Object.assign({id:uid()}, data);
+        cuts.push(data);
+        localSave(); onDataChanged();
+      }
+    },
+    updateCut: async function(id, data){
+      if(db){ await db.doc('cuts/'+id).update(data); }
+      else {
+        var c = null;
+        for(var i=0;i<cuts.length;i++) if(cuts[i].id===id) c=cuts[i];
+        if(c) Object.assign(c, data);
+        localSave(); onDataChanged();
+      }
+    },
+    deleteCut: async function(id){
+      if(db){ await db.doc('cuts/'+id).delete(); }
+      else {
+        cuts = cuts.filter(function(c){ return c.id!==id; });
+        localSave(); onDataChanged();
+      }
+    },
+    addDemand: async function(data){
+      if(db){ await db.collection('demands').add(data); }
+      else {
+        data = Object.assign({id:uid()}, data);
+        demands.push(data);
+        localSave(); onDataChanged();
+      }
+    },
+    updateDemand: async function(id, data){
+      if(db){ await db.doc('demands/'+id).update(data); }
+      else {
+        var d = demandById(id);
+        if(d) Object.assign(d, data);
+        localSave(); onDataChanged();
+      }
+    },
+    deleteDemand: async function(id){
+      if(db){ await db.doc('demands/'+id).delete(); }
+      else {
+        demands = demands.filter(function(d){ return d.id!==id; });
+        localSave(); onDataChanged();
+      }
+    }
+  };
+
+  // ---------- view: HOME ----------
+  function renderHome(){
+    var view = document.getElementById('view');
+    var totalPurchased = purchases.reduce(function(s,p){ return s+(Number(p.qty)||0); },0);
+    var totalUsed = cuts.reduce(function(s,c){ return s+(Number(c.platesUsed)||0); },0);
+    var totalRemaining = purchases.reduce(function(s,p){ return s+remainingFor(p); },0);
+    var cats = distinctCategories().length;
+
+    var lowBatches = purchases.map(function(p){ return {p:p, r:remainingFor(p)}; })
+      .filter(function(x){ return x.r <= 2; })
+      .sort(function(a,b){ return a.r-b.r; });
+
+    var openDemands = demands.map(function(d){
+        var completed = demandCompleted(d), needed = Number(d.qtyNeeded)||0;
+        return {d:d, completed:completed, needed:needed, remaining:Math.max(0,needed-completed)};
+      })
+      .filter(function(x){ return x.remaining>0; })
+      .sort(function(a,b){
+        if(a.d.dueDate && b.d.dueDate) return a.d.dueDate.localeCompare(b.d.dueDate);
+        if(a.d.dueDate) return -1;
+        if(b.d.dueDate) return 1;
+        return b.remaining-a.remaining;
+      });
+
+    var recent = purchases.map(function(p){ return {type:'purchase', date:p.date, createdAt:p.createdAt, ref:p}; })
+      .concat(cuts.map(function(c){ return {type:'cut', date:c.date, createdAt:c.createdAt, ref:c}; }))
+      .sort(function(a,b){ return (b.createdAt||'').localeCompare(a.createdAt||''); })
+      .slice(0,6);
+
+    var html = '';
+    html += '<div class="stats">';
+    html += '<div class="stat accent"><span class="num">'+totalRemaining+'</span><span class="label">Plates in stock</span></div>';
+    html += '<div class="stat"><span class="num">'+totalPurchased+'</span><span class="label">Total purchased</span></div>';
+    html += '<div class="stat"><span class="num">'+totalUsed+'</span><span class="label">Total cut</span></div>';
+    html += '<div class="stat"><span class="num">'+cats+'</span><span class="label">Categories produced</span></div>';
+    if(demands.length){
+      html += '<div class="stat'+(openDemands.length?' accent':'')+'"><span class="num">'+openDemands.length+'</span><span class="label">Open targets</span></div>';
+    }
+    html += '</div>';
+
+    if(openDemands.length){
+      html += '<div class="section-title">Production targets<button class="btn btn-sm btn-ghost" data-action="switch-tab" data-tab="demand">View all</button></div>';
+      html += '<div class="card">';
+      openDemands.slice(0,5).forEach(function(x, i){
+        var pct = x.needed>0 ? Math.max(x.completed>0?4:0, Math.round(x.completed/x.needed*100)) : 0;
+        html += '<div style="'+(i? 'margin-top:12px;padding-top:12px;border-top:1px solid var(--line);':'')+'">';
+        html += '<div class="row"><div class="small" style="font-weight:600;">'+esc(demandSizeTitle(x.d))+'</div>'+
+          (x.d.dueDate? '<span class="tiny muted">Due '+fmtDate(x.d.dueDate)+'</span>':'')+'</div>';
+        html += '<div class="tiny muted">'+esc(x.d.project||'—')+(demandSizeSub(x.d)? ' · '+esc(demandSizeSub(x.d)):'')+'</div>';
+        html += '<div class="barrow" style="grid-template-columns:1fr 70px;margin-top:8px;margin-bottom:0;">'+
+          '<div class="track"><div class="fill" style="width:'+pct+'%;background:var(--accent);"></div></div>'+
+          '<div class="val">'+x.completed+'/'+x.needed+'</div></div>';
+        html += '</div>';
+      });
+      html += '</div>';
+    }
+
+    if(lowBatches.length){
+      html += '<div class="section-title">Needs attention</div>';
+      html += '<div class="card">';
+      lowBatches.slice(0,5).forEach(function(x, i){
+        var st = statusFor(x.r);
+        html += '<div class="row" style="'+(i? 'margin-top:10px;padding-top:10px;border-top:1px solid var(--line);':'')+'">';
+        html += '<div><div class="mono small" style="font-weight:600;">'+esc(sizeLabel(x.p))+'</div><div class="tiny muted">'+esc(x.p.project||'—')+'</div></div>';
+        html += '<span class="status '+st.cls+'">'+x.r+' left</span>';
+        html += '</div>';
+      });
+      html += '</div>';
+    }
+
+    html += '<div class="section-title">Recent activity</div>';
+    if(!recent.length){
+      html += '<div class="empty">'+icon('box')+'<p>Nothing logged yet.<br>Add a purchase to get started.</p>'+
+        '<button class="btn btn-primary" data-action="switch-tab" data-tab="purchase">'+icon('plus')+' Add purchase</button></div>';
+    } else {
+      html += '<div class="card">';
+      recent.forEach(function(item, i){
+        var border = i? 'margin-top:10px;padding-top:10px;border-top:1px solid var(--line);' : '';
+        if(item.type==='purchase'){
+          var p = item.ref;
+          html += '<div class="row" style="'+border+'"><div>'+
+            '<div class="small"><b>'+esc(p.qty)+'</b> plates purchased — <span class="mono">'+esc(sizeLabel(p))+'</span></div>'+
+            '<div class="tiny muted">'+esc(p.project||'—')+' · '+fmtDate(p.date)+'</div></div></div>';
+        } else {
+          var c = item.ref;
+          var outSummary = (c.outputs||[]).map(function(o){ return o.qty+' '+o.unit+' '+o.category; }).join(', ');
+          html += '<div class="row" style="'+border+'"><div>'+
+            '<div class="small"><b>'+esc(c.platesUsed)+'</b> plates cut'+(outSummary? ' → '+esc(outSummary):'')+'</div>'+
+            '<div class="tiny muted">'+esc(c.project||'—')+' · '+fmtDate(c.date)+'</div></div></div>';
+        }
+      });
+      html += '</div>';
+    }
+
+    view.innerHTML = html;
+  }
+
+  // ---------- view: PURCHASE ----------
+  var purchaseFormOpen = false;
+  var editingPurchaseId = null;
+
+  function renderPurchaseTab(){
+    var view = document.getElementById('view');
+    view.innerHTML =
+      '<div class="section-title">Purchases<button class="btn btn-sm btn-primary" data-action="toggle-purchase-form">'+icon('plus')+' New</button></div>'+
+      '<div id="purchase-form-area"></div>'+
+      '<div id="purchase-list-area"></div>';
+    if(purchaseFormOpen) openPurchaseForm(editingPurchaseId);
+    renderPurchaseList();
+  }
+
+  function purchaseFormHtml(p){
+    p = p || {};
+    var t = p.thickness||'', w = p.width||'', l = p.length||'';
+    return ''+
+    '<div class="form-card">'+
+      '<h3 style="font-size:.95rem;margin-bottom:12px;">'+(p.id?'Edit purchase':'New purchase')+'</h3>'+
+      '<form id="purchase-form">'+
+        '<div class="grid2">'+
+          '<div class="field"><label>Date</label><input type="date" name="date" value="'+esc(p.date||todayStr())+'" required></div>'+
+          '<div class="field"><label>Project</label><input type="text" name="project" list="dl-projects" placeholder="e.g. Site A / PO-102" value="'+esc(p.project||'')+'" required></div>'+
+        '</div>'+
+        '<div class="field"><label>Plate size (mm)</label>'+
+          '<div class="grid3">'+
+            '<input type="number" name="thickness" placeholder="Thick." min="0.1" step="0.1" value="'+esc(t)+'" required>'+
+            '<input type="number" name="width" placeholder="Width" min="1" step="1" value="'+esc(w)+'" required>'+
+            '<input type="number" name="plateLength" placeholder="Length" min="1" step="1" value="'+esc(l)+'" required>'+
+          '</div>'+
+        '</div>'+
+        '<div class="hint" id="weight-hint">&nbsp;</div>'+
+        '<div class="field"><label>Plates purchased</label><input type="number" name="qty" min="1" step="1" value="'+esc(p.qty||1)+'" required></div>'+
+        '<div class="grid2">'+
+          '<div class="field"><label>Supplier <span style="text-transform:none;">(optional)</span></label><input type="text" name="supplier" value="'+esc(p.supplier||'')+'"></div>'+
+          '<div class="field"><label>Invoice # <span style="text-transform:none;">(optional)</span></label><input type="text" name="invoice" value="'+esc(p.invoice||'')+'"></div>'+
+        '</div>'+
+        '<div class="field"><label>Notes <span style="text-transform:none;">(optional)</span></label><textarea name="notes">'+esc(p.notes||'')+'</textarea></div>'+
+        '<div class="btn-row">'+
+          '<button type="submit" class="btn btn-primary">'+(p.id?'Save changes':'Add purchase')+'</button>'+
+          '<button type="button" class="btn btn-ghost" data-action="close-purchase-form">Cancel</button>'+
+          (p.id? '<button type="button" class="btn btn-danger" data-action="delete-purchase" data-id="'+p.id+'" style="margin-left:auto;">Delete</button>' : '')+
+        '</div>'+
+      '</form>'+
+    '</div>';
+  }
+
+  function openPurchaseForm(id){
+    purchaseFormOpen = true;
+    editingPurchaseId = id || null;
+    var p = id ? purchaseById(id) : null;
+    document.getElementById('purchase-form-area').innerHTML = purchaseFormHtml(p);
+    updateWeightHint();
+    var form = document.getElementById('purchase-form');
+    form.elements['thickness'].addEventListener('input', updateWeightHint);
+    form.elements['width'].addEventListener('input', updateWeightHint);
+    form.elements['plateLength'].addEventListener('input', updateWeightHint);
+    form.elements['date'] && form.elements['date'].focus();
+  }
+  function updateWeightHint(){
+    var form = document.getElementById('purchase-form');
+    if(!form) return;
+    var t = parseFloat(form.elements['thickness'].value);
+    var w = parseFloat(form.elements['width'].value);
+    var l = parseFloat(form.elements['plateLength'].value);
+    var hint = document.getElementById('weight-hint');
+    if(t>0 && w>0 && l>0){
+      hint.innerHTML = '≈ <b class="mono">'+trimNum(plateWeightKg(t,w,l))+' kg</b> per plate (HR steel, 7.85 g/cm³)';
+    } else hint.innerHTML = '&nbsp;';
+  }
+  function closePurchaseForm(){
+    purchaseFormOpen = false;
+    editingPurchaseId = null;
+    var area = document.getElementById('purchase-form-area');
+    if(area) area.innerHTML = '';
+  }
+
+  function renderPurchaseList(){
+    var area = document.getElementById('purchase-list-area');
+    if(!area) return;
+    if(!purchases.length){
+      area.innerHTML = '<div class="empty">'+icon('box')+'<p>No purchases logged yet.</p></div>';
+      return;
+    }
+    var sorted = purchases.slice().sort(function(a,b){ return (b.date||'').localeCompare(a.date||'') || (b.createdAt||'').localeCompare(a.createdAt||''); });
+    area.innerHTML = sorted.map(function(p){
+      var r = remainingFor(p);
+      var st = statusFor(r);
+      return '<div class="item" data-action="edit-purchase" data-id="'+p.id+'">'+
+        '<div class="top"><span class="size mono">'+esc(sizeLabel(p))+'</span><span class="status '+st.cls+'">'+st.label+'</span></div>'+
+        '<div class="row"><span class="proj small">'+esc(p.project||'—')+'</span><span class="tiny muted">'+fmtDate(p.date)+'</span></div>'+
+        '<div class="chips">'+
+          '<span class="chip">Purchased <b>'+(Number(p.qty)||0)+'</b></span>'+
+          '<span class="chip">Used <b>'+usedFor(p.id)+'</b></span>'+
+          '<span class="chip">Remaining <b>'+r+'</b></span>'+
+        '</div>'+
+      '</div>';
+    }).join('');
+  }
+
+  // ---------- view: CUT ----------
+  var cutFormOpen = false;
+  var editingCutId = null;
+  var outputRowSeq = 0;
+
+  function renderCutTab(){
+    var view = document.getElementById('view');
+    view.innerHTML =
+      '<div class="section-title">Cutting log<button class="btn btn-sm btn-primary" data-action="toggle-cut-form">'+icon('plus')+' New</button></div>'+
+      '<div id="cut-form-area"></div>'+
+      '<div id="cut-list-area"></div>';
+    if(cutFormOpen) openCutForm(editingCutId);
+    renderCutList();
+  }
+
+  function outputRowHtml(o){
+    o = o || {category:'', qty:'', unit:'pcs'};
+    outputRowSeq++;
+    return '<div class="output-row" data-row="'+outputRowSeq+'">'+
+      '<input type="text" class="out-cat" list="dl-categories" placeholder="Category e.g. Bracket-A" value="'+esc(o.category)+'">'+
+      '<input type="number" class="out-qty" placeholder="Qty" min="0" step="0.1" value="'+esc(o.qty)+'">'+
+      '<select class="out-unit">'+
+        ['pcs','kg','m'].map(function(u){ return '<option value="'+u+'"'+(o.unit===u?' selected':'')+'>'+u+'</option>'; }).join('')+
+      '</select>'+
+      '<button type="button" data-action="remove-output-row">×</button>'+
+    '</div>';
+  }
+
+  function cutFormHtml(c){
+    c = c || {};
+    var batchOptions = purchases.map(function(p){
+      var r = remainingFor(p, c.id||null);
+      if(r <= 0 && p.id !== c.purchaseId) return '';
+      return '<option value="'+p.id+'"'+(c.purchaseId===p.id?' selected':'')+'>'+
+        esc(sizeLabel(p))+' — '+esc(p.project||'—')+' ('+r+' left)</option>';
+    }).join('');
+
+    var outputs = (c.outputs && c.outputs.length) ? c.outputs : [{category:'',qty:'',unit:'pcs'}];
+    var rowsHtml = outputs.map(outputRowHtml).join('');
+
+    var noBatches = !purchases.length;
+
+    return ''+
+    '<div class="form-card">'+
+      '<h3 style="font-size:.95rem;margin-bottom:12px;">'+(c.id?'Edit cutting record':'New cutting record')+'</h3>'+
+      (noBatches ?
+        '<p class="small muted">No plate purchases on record yet. Add a purchase first so you can pick a size to cut from.</p>'+
+        '<button type="button" class="btn btn-ghost" data-action="close-cut-form">Close</button>'
+        :
+      '<form id="cut-form">'+
+        '<div class="grid2">'+
+          '<div class="field"><label>Date</label><input type="date" name="date" value="'+esc(c.date||todayStr())+'" required></div>'+
+          '<div class="field"><label>Project</label><input type="text" name="project" list="dl-projects" placeholder="Project this cut is for" value="'+esc(c.project||'')+'" required></div>'+
+        '</div>'+
+        '<div class="field"><label>Source plate batch</label><select name="purchaseId" required>'+
+          '<option value="">Select a batch…</option>'+batchOptions+
+        '</select></div>'+
+        '<div class="field"><label>Plates used</label><input type="number" name="platesUsed" min="1" step="1" value="'+esc(c.platesUsed||1)+'" required></div>'+
+        '<div class="hint" id="cut-qty-hint">&nbsp;</div>'+
+        '<div class="field"><label>Materials produced</label>'+
+          '<div id="output-rows">'+rowsHtml+'</div>'+
+          '<button type="button" class="btn btn-sm btn-ghost" data-action="add-output-row">'+icon('plus')+' Add category</button>'+
+        '</div>'+
+        '<div class="grid2">'+
+          '<div class="field"><label>Scrap / offcut (kg) <span style="text-transform:none;">optional</span></label><input type="number" name="scrapWeightKg" min="0" step="0.1" value="'+esc(c.scrapWeightKg||'')+'"></div>'+
+          '<div class="field"><label>Notes <span style="text-transform:none;">optional</span></label><input type="text" name="notes" value="'+esc(c.notes||'')+'"></div>'+
+        '</div>'+
+        '<div class="btn-row">'+
+          '<button type="submit" class="btn btn-primary">'+(c.id?'Save changes':'Log cut')+'</button>'+
+          '<button type="button" class="btn btn-ghost" data-action="close-cut-form">Cancel</button>'+
+          (c.id? '<button type="button" class="btn btn-danger" data-action="delete-cut" data-id="'+c.id+'" style="margin-left:auto;">Delete</button>' : '')+
+        '</div>'+
+      '</form>'
+      )+
+    '</div>';
+  }
+
+  function openCutForm(id){
+    cutFormOpen = true;
+    editingCutId = id || null;
+    var c = null;
+    if(id){ for(var i=0;i<cuts.length;i++) if(cuts[i].id===id) c = cuts[i]; }
+    document.getElementById('cut-form-area').innerHTML = cutFormHtml(c);
+    updateCutQtyHint();
+    var form = document.getElementById('cut-form');
+    if(form){
+      form.elements['purchaseId'].addEventListener('change', updateCutQtyHint);
+      form.elements['platesUsed'].addEventListener('input', updateCutQtyHint);
+    }
+  }
+  function updateCutQtyHint(){
+    var form = document.getElementById('cut-form');
+    var hint = document.getElementById('cut-qty-hint');
+    if(!form || !hint) return;
+    var pid = form.elements['purchaseId'].value;
+    var used = parseFloat(form.elements['platesUsed'].value) || 0;
+    var p = purchaseById(pid);
+    if(!p){ hint.innerHTML='&nbsp;'; return; }
+    var avail = remainingFor(p, editingCutId);
+    if(used > avail){
+      hint.innerHTML = '<span style="color:var(--crit);">Only '+avail+' plates left in this batch.</span>';
+    } else {
+      hint.innerHTML = esc(sizeLabel(p))+' · '+avail+' available before this entry';
+    }
+  }
+  function closeCutForm(){
+    cutFormOpen = false;
+    editingCutId = null;
+    var area = document.getElementById('cut-form-area');
+    if(area) area.innerHTML = '';
+  }
+
+  function renderCutList(){
+    var area = document.getElementById('cut-list-area');
+    if(!area) return;
+    if(!cuts.length){
+      area.innerHTML = '<div class="empty">'+icon('scissors')+'<p>No cutting records yet.</p></div>';
+      return;
+    }
+    var sorted = cuts.slice().sort(function(a,b){ return (b.date||'').localeCompare(a.date||'') || (b.createdAt||'').localeCompare(a.createdAt||''); });
+    area.innerHTML = sorted.map(function(c){
+      var p = purchaseById(c.purchaseId);
+      var sizeTxt = p ? sizeLabel(p) : (c.sourceSizeLabel || 'source removed');
+      var outs = (c.outputs||[]).map(function(o){
+        return '<span class="chip"><b>'+esc(o.qty)+' '+esc(o.unit)+'</b> '+esc(o.category)+'</span>';
+      }).join('');
+      return '<div class="item" data-action="edit-cut" data-id="'+c.id+'">'+
+        '<div class="top"><span class="size mono">'+esc(sizeTxt)+'</span><span class="tiny muted">'+fmtDate(c.date)+'</span></div>'+
+        '<div class="row"><span class="proj small">'+esc(c.project||'—')+'</span><span class="tiny muted">'+(Number(c.platesUsed)||0)+' plates used</span></div>'+
+        (outs? '<div class="chips">'+outs+'</div>' : '')+
+        (c.scrapWeightKg? '<div class="tiny muted" style="margin-top:6px;">Scrap: '+esc(c.scrapWeightKg)+' kg</div>' : '')+
+      '</div>';
+    }).join('');
+  }
+
+  // ---------- view: DEMAND ----------
+  var demandFormOpen = false;
+  var editingDemandId = null;
+  var demandProjectFilter = '';
+
+  function renderDemandTab(){
+    var view = document.getElementById('view');
+    view.innerHTML =
+      '<div class="section-title">Production demand<button class="btn btn-sm btn-primary" data-action="toggle-demand-form">'+icon('plus')+' New</button></div>'+
+      '<p class="tiny muted" style="margin:-6px 0 14px;">Set what each project needs, in the same category names used in the cutting log — completed quantities are pulled automatically from matching cuts.</p>'+
+      '<div class="field" id="demand-filter-wrap" style="max-width:220px;margin-bottom:14px;display:none;"><label>Filter by project</label><select id="demand-filter-project"></select></div>'+
+      '<div id="demand-form-area"></div>'+
+      '<div id="demand-list-area"></div>';
+    if(demandFormOpen) openDemandForm(editingDemandId);
+    updateDemandFilterOptions();
+    renderDemandList();
+    var sel = document.getElementById('demand-filter-project');
+    if(sel) sel.addEventListener('change', function(){ demandProjectFilter = sel.value; renderDemandList(); });
+  }
+
+  function updateDemandFilterOptions(){
+    var sel = document.getElementById('demand-filter-project');
+    var wrap = document.getElementById('demand-filter-wrap');
+    if(!sel || !wrap) return;
+    var projects = distinctProjects();
+    wrap.style.display = projects.length>1 ? '' : 'none';
+    if(demandProjectFilter && projects.indexOf(demandProjectFilter)===-1) demandProjectFilter = '';
+    sel.innerHTML = '<option value="">All projects</option>'+
+      projects.map(function(p){ return '<option value="'+esc(p)+'"'+(p===demandProjectFilter?' selected':'')+'>'+esc(p)+'</option>'; }).join('');
+  }
+
+  function demandFormHtml(d){
+    d = d || {};
+    return ''+
+    '<div class="form-card">'+
+      '<h3 style="font-size:.95rem;margin-bottom:12px;">'+(d.id?'Edit demand':'New demand')+'</h3>'+
+      '<form id="demand-form">'+
+        '<div class="field"><label>Project</label><input type="text" name="project" list="dl-projects" placeholder="e.g. Site A / PO-102" value="'+esc(d.project||'')+'" required></div>'+
+        '<div class="field"><label>Category / part</label><input type="text" name="category" list="dl-categories" placeholder="e.g. Wave" value="'+esc(d.category||'')+'" required></div>'+
+        '<div class="grid3">'+
+          '<div class="field"><label>Thickness (mm)</label><input type="number" name="thickness" placeholder="optional" min="0" step="0.1" value="'+esc(d.thickness||'')+'"></div>'+
+          '<div class="field"><label>Piece width (mm)</label><input type="number" name="pieceWidth" placeholder="optional" min="0" step="1" value="'+esc(d.pieceWidth||'')+'"></div>'+
+          '<div class="field"><label>Piece length (mm)</label><input type="number" name="pieceLength" placeholder="optional" min="0" step="1" value="'+esc(d.pieceLength||'')+'"></div>'+
+        '</div>'+
+        '<div class="grid2">'+
+          '<div class="field"><label>Quantity needed (pcs)</label><input type="number" name="qtyNeeded" min="1" step="1" value="'+esc(d.qtyNeeded||'')+'" required></div>'+
+          '<div class="field"><label>Due date <span style="text-transform:none;">(optional)</span></label><input type="date" name="dueDate" value="'+esc(d.dueDate||'')+'"></div>'+
+        '</div>'+
+        '<div class="field"><label>Already produced before tracking <span style="text-transform:none;">(optional)</span></label>'+
+          '<input type="number" name="manualCompleted" min="0" step="1" value="'+esc(d.manualCompleted||0)+'"></div>'+
+        '<div class="hint">This is added on top of any matching entries already logged in the cutting log.</div>'+
+        '<div class="field"><label>Notes <span style="text-transform:none;">(optional)</span></label><textarea name="notes">'+esc(d.notes||'')+'</textarea></div>'+
+        '<div class="btn-row">'+
+          '<button type="submit" class="btn btn-primary">'+(d.id?'Save changes':'Add demand')+'</button>'+
+          '<button type="button" class="btn btn-ghost" data-action="close-demand-form">Cancel</button>'+
+          (d.id? '<button type="button" class="btn btn-danger" data-action="delete-demand" data-id="'+d.id+'" style="margin-left:auto;">Delete</button>' : '')+
+        '</div>'+
+      '</form>'+
+    '</div>';
+  }
+
+  function openDemandForm(id){
+    demandFormOpen = true;
+    editingDemandId = id || null;
+    var d = id ? demandById(id) : null;
+    document.getElementById('demand-form-area').innerHTML = demandFormHtml(d);
+    var form = document.getElementById('demand-form');
+    form.elements['project'] && form.elements['project'].focus();
+  }
+  function closeDemandForm(){
+    demandFormOpen = false;
+    editingDemandId = null;
+    var area = document.getElementById('demand-form-area');
+    if(area) area.innerHTML = '';
+  }
+
+  function demandItemHtml(d){
+    var completed = demandCompleted(d);
+    var needed = Number(d.qtyNeeded)||0;
+    var remaining = Math.max(0, needed-completed);
+    var st = demandStatus(completed, needed);
+    var pct = needed>0 ? Math.min(100, Math.max(completed>0?4:0, Math.round(completed/needed*100))) : 0;
+    var fillColor = completed<=0 ? 'var(--ink-dim)' : (completed>=needed ? 'var(--good)' : 'var(--accent)');
+    var sub = demandSizeSub(d);
+    return '<div class="item" data-action="edit-demand" data-id="'+d.id+'">'+
+      '<div class="top"><span class="size mono">'+esc(demandSizeTitle(d))+'</span><span class="status '+st.cls+'">'+st.label+'</span></div>'+
+      (d.dueDate? '<div class="row"><span></span><span class="tiny muted">Due '+fmtDate(d.dueDate)+'</span></div>' : '')+
+      (sub? '<div class="tiny muted">'+esc(sub)+'</div>' : '')+
+      '<div class="barrow" style="grid-template-columns:1fr 70px;margin-top:10px;margin-bottom:0;">'+
+        '<div class="track"><div class="fill" style="width:'+pct+'%;background:'+fillColor+';"></div></div>'+
+        '<div class="val">'+completed+'/'+needed+'</div>'+
+      '</div>'+
+      (remaining>0? '<div class="tiny muted" style="margin-top:6px;">'+remaining+' pcs remaining</div>' : '')+
+    '</div>';
+  }
+
+  function renderDemandList(){
+    var area = document.getElementById('demand-list-area');
+    if(!area) return;
+    if(!demands.length){
+      area.innerHTML = '<div class="empty">'+icon('target')+'<p>No production targets yet.<br>Add what each project needs to start tracking progress.</p></div>';
+      return;
+    }
+    var filtered = demands.filter(function(d){ return !demandProjectFilter || d.project===demandProjectFilter; });
+    if(!filtered.length){
+      area.innerHTML = '<div class="empty">'+icon('target')+'<p>No demand items for this project.</p></div>';
+      return;
+    }
+
+    var groups = {}, order = [];
+    filtered.forEach(function(d){
+      var key = d.project || '—';
+      if(!groups[key]){ groups[key] = []; order.push(key); }
+      groups[key].push(d);
+    });
+
+    var groupStats = order.map(function(key){
+      var items = groups[key];
+      var totalNeeded = 0, totalCompleted = 0, earliestDue = null;
+      items.forEach(function(d){
+        totalNeeded += Number(d.qtyNeeded)||0;
+        totalCompleted += demandCompleted(d);
+        if(d.dueDate && (!earliestDue || d.dueDate < earliestDue)) earliestDue = d.dueDate;
+      });
+      return {key:key, items:items, totalNeeded:totalNeeded, totalCompleted:totalCompleted,
+        totalRemaining: Math.max(0, totalNeeded-totalCompleted), earliestDue:earliestDue};
+    });
+
+    groupStats.sort(function(a,b){
+      if(a.earliestDue && b.earliestDue) return a.earliestDue.localeCompare(b.earliestDue);
+      if(a.earliestDue) return -1;
+      if(b.earliestDue) return 1;
+      return b.totalRemaining - a.totalRemaining;
+    });
+
+    area.innerHTML = groupStats.map(function(g, gi){
+      var pct = g.totalNeeded>0 ? Math.min(100, Math.max(g.totalCompleted>0?4:0, Math.round(g.totalCompleted/g.totalNeeded*100))) : 0;
+      var fillColor = g.totalCompleted<=0 ? 'var(--ink-dim)' : (g.totalCompleted>=g.totalNeeded ? 'var(--good)' : 'var(--accent)');
+      var itemsSorted = g.items.slice().sort(function(a,b){
+        var ca=demandCompleted(a), na=Number(a.qtyNeeded)||0, ra=Math.max(0,na-ca);
+        var cb=demandCompleted(b), nb=Number(b.qtyNeeded)||0, rb=Math.max(0,nb-cb);
+        if(a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate);
+        if(a.dueDate) return -1;
+        if(b.dueDate) return 1;
+        return rb-ra;
+      });
+      return '<div class="section-title" style="'+(gi? 'margin-top:26px;':'margin-top:0;')+'text-transform:none;letter-spacing:0;">'+
+          '<span style="font-family:\'Oswald\',sans-serif;text-transform:uppercase;letter-spacing:.02em;color:var(--steel-700);font-size:.95rem;">'+esc(g.key)+'</span>'+
+          '<span class="tiny muted">'+g.items.length+' item'+(g.items.length!==1?'s':'')+'</span>'+
+        '</div>'+
+        '<div class="card" style="margin-bottom:8px;">'+
+          '<div class="row"><span class="small" style="font-weight:600;">Project total</span>'+
+            (g.earliestDue? '<span class="tiny muted">Next due '+fmtDate(g.earliestDue)+'</span>':'')+
+          '</div>'+
+          '<div class="barrow" style="grid-template-columns:1fr 80px;margin-top:8px;margin-bottom:0;">'+
+            '<div class="track"><div class="fill" style="width:'+pct+'%;background:'+fillColor+';"></div></div>'+
+            '<div class="val">'+g.totalCompleted+'/'+g.totalNeeded+'</div>'+
+          '</div>'+
+        '</div>'+
+        itemsSorted.map(demandItemHtml).join('');
+    }).join('');
+  }
+
+  // ---------- view: STOCK ----------
+  function renderStock(){
+    var view = document.getElementById('view');
+    var projects = distinctProjects();
+    var filterHtml = '<select id="filter-project"><option value="">All projects</option>'+
+      projects.map(function(p){ return '<option value="'+esc(p)+'"'+(p===projectFilter?' selected':'')+'>'+esc(p)+'</option>'; }).join('')+
+      '</select>';
+
+    var list = purchases.filter(function(p){ return !projectFilter || p.project===projectFilter; })
+      .map(function(p){ return {p:p, r:remainingFor(p)}; })
+      .sort(function(a,b){ return a.r-b.r; });
+
+    var html = '<div class="section-title">Stock by batch'+filterHtml+'</div>';
+    if(!list.length){
+      html += '<div class="empty">'+icon('layers')+'<p>No plate batches match.</p></div>';
+    } else {
+      html += '<div class="card">';
+      list.forEach(function(x, i){
+        var st = statusFor(x.r);
+        html += '<div class="row" style="'+(i? 'margin-top:10px;padding-top:10px;border-top:1px solid var(--line);':'')+'">'+
+          '<div><div class="mono small" style="font-weight:600;">'+esc(sizeLabel(x.p))+'</div>'+
+          '<div class="tiny muted">'+esc(x.p.project||'—')+' · purchased '+(Number(x.p.qty)||0)+', used '+usedFor(x.p.id)+'</div></div>'+
+          '<span class="status '+st.cls+'">'+x.r+' left</span>'+
+        '</div>';
+      });
+      html += '</div>';
+    }
+    view.innerHTML = html;
+    var sel = document.getElementById('filter-project');
+    if(sel) sel.addEventListener('change', function(){ projectFilter = sel.value; renderStock(); });
+  }
+
+  // ---------- view: REPORTS ----------
+  function renderReports(){
+    var view = document.getElementById('view');
+    var totalPurchased = purchases.reduce(function(s,p){ return s+(Number(p.qty)||0); },0);
+    var totalUsed = cuts.reduce(function(s,c){ return s+(Number(c.platesUsed)||0); },0);
+    var totalScrap = cuts.reduce(function(s,c){ return s+(Number(c.scrapWeightKg)||0); },0);
+
+    var catTotals = {};
+    cuts.forEach(function(c){ (c.outputs||[]).forEach(function(o){
+      var key = o.category + '||' + o.unit;
+      catTotals[key] = (catTotals[key]||0) + (Number(o.qty)||0);
+    }); });
+    var catRows = Object.keys(catTotals).map(function(k){
+      var parts = k.split('||'); return {name:parts[0], unit:parts[1], qty:catTotals[k]};
+    }).sort(function(a,b){ return b.qty-a.qty; });
+    var catMax = catRows.reduce(function(m,r){ return Math.max(m,r.qty); },0) || 1;
+
+    var projTotals = {};
+    cuts.forEach(function(c){
+      var key = c.project || '—';
+      projTotals[key] = (projTotals[key]||0) + (Number(c.platesUsed)||0);
+    });
+    var projRows = Object.keys(projTotals).map(function(k){ return {name:k, qty:projTotals[k]}; })
+      .sort(function(a,b){ return b.qty-a.qty; });
+    var projMax = projRows.reduce(function(m,r){ return Math.max(m,r.qty); },0) || 1;
+
+    var html = '';
+    html += '<div class="stats">';
+    html += '<div class="stat"><span class="num">'+totalPurchased+'</span><span class="label">Plates purchased</span></div>';
+    html += '<div class="stat"><span class="num">'+totalUsed+'</span><span class="label">Plates cut</span></div>';
+    html += '<div class="stat accent"><span class="num">'+trimNum(totalScrap)+'</span><span class="label">Scrap (kg)</span></div>';
+    html += '<div class="stat"><span class="num">'+catRows.length+'</span><span class="label">Categories</span></div>';
+    html += '</div>';
+
+    html += '<div class="section-title">Material produced by category</div>';
+    if(!catRows.length){
+      html += '<div class="empty">'+icon('chart')+'<p>No cutting output logged yet.</p></div>';
+    } else {
+      html += '<div class="card">' + catRows.map(function(r){
+        var pct = Math.max(4, Math.round(r.qty/catMax*100));
+        return '<div class="barrow"><div class="name" title="'+esc(r.name)+'">'+esc(r.name)+'</div>'+
+          '<div class="track"><div class="fill" style="width:'+pct+'%"></div></div>'+
+          '<div class="val">'+trimNum(r.qty)+' '+esc(r.unit)+'</div></div>';
+      }).join('') + '</div>';
+    }
+
+    html += '<div class="section-title">Plates used by project</div>';
+    if(!projRows.length){
+      html += '<div class="empty">'+icon('chart')+'<p>No cutting records yet.</p></div>';
+    } else {
+      html += '<div class="card">' + projRows.map(function(r){
+        var pct = Math.max(4, Math.round(r.qty/projMax*100));
+        return '<div class="barrow"><div class="name" title="'+esc(r.name)+'">'+esc(r.name)+'</div>'+
+          '<div class="track"><div class="fill" style="width:'+pct+'%"></div></div>'+
+          '<div class="val">'+r.qty+'</div></div>';
+      }).join('') + '</div>';
+    }
+
+    view.innerHTML = html;
+  }
+
+  // ---------- tab switching ----------
+  function switchTab(tab){
+    currentTab = tab;
+    purchaseFormOpen = false; editingPurchaseId = null;
+    cutFormOpen = false; editingCutId = null;
+    demandFormOpen = false; editingDemandId = null;
+    document.querySelectorAll('.bottomnav button').forEach(function(b){
+      b.classList.toggle('active', b.getAttribute('data-tab')===tab);
+    });
+    if(tab==='home') renderHome();
+    else if(tab==='purchase') renderPurchaseTab();
+    else if(tab==='cut') renderCutTab();
+    else if(tab==='demand') renderDemandTab();
+    else if(tab==='stock') renderStock();
+    else if(tab==='reports') renderReports();
+  }
+
+  // ---------- event delegation ----------
+  document.getElementById('bottomnav').addEventListener('click', function(e){
+    var btn = e.target.closest('button[data-tab]');
+    if(btn) switchTab(btn.getAttribute('data-tab'));
+  });
+
+  document.getElementById('view').addEventListener('click', function(e){
+    var el;
+    if((el = e.target.closest('[data-action="switch-tab"]'))){ switchTab(el.getAttribute('data-tab')); return; }
+    if((el = e.target.closest('[data-action="toggle-purchase-form"]'))){
+      if(purchaseFormOpen) closePurchaseForm(); else openPurchaseForm(null);
+      return;
+    }
+    if((el = e.target.closest('[data-action="close-purchase-form"]'))){ closePurchaseForm(); return; }
+    if((el = e.target.closest('[data-action="edit-purchase"]'))){ openPurchaseForm(el.getAttribute('data-id')); return; }
+    if((el = e.target.closest('[data-action="delete-purchase"]'))){
+      handleDangerButton(el, 'Confirm delete?', async function(id){
+        await dataApi.deletePurchase(id);
+        closePurchaseForm();
+        toast('Purchase deleted');
+      });
+      return;
+    }
+    if((el = e.target.closest('[data-action="toggle-cut-form"]'))){
+      if(cutFormOpen) closeCutForm(); else openCutForm(null);
+      return;
+    }
+    if((el = e.target.closest('[data-action="close-cut-form"]'))){ closeCutForm(); return; }
+    if((el = e.target.closest('[data-action="edit-cut"]'))){ openCutForm(el.getAttribute('data-id')); return; }
+    if((el = e.target.closest('[data-action="delete-cut"]'))){
+      handleDangerButton(el, 'Confirm delete?', async function(id){
+        await dataApi.deleteCut(id);
+        closeCutForm();
+        toast('Cutting record deleted');
+      });
+      return;
+    }
+    if((el = e.target.closest('[data-action="add-output-row"]'))){
+      document.getElementById('output-rows').insertAdjacentHTML('beforeend', outputRowHtml());
+      return;
+    }
+    if((el = e.target.closest('[data-action="remove-output-row"]'))){
+      var rows = document.querySelectorAll('#output-rows .output-row');
+      if(rows.length > 1) el.closest('.output-row').remove();
+      return;
+    }
+    if((el = e.target.closest('[data-action="toggle-demand-form"]'))){
+      if(demandFormOpen) closeDemandForm(); else openDemandForm(null);
+      return;
+    }
+    if((el = e.target.closest('[data-action="close-demand-form"]'))){ closeDemandForm(); return; }
+    if((el = e.target.closest('[data-action="edit-demand"]'))){ openDemandForm(el.getAttribute('data-id')); return; }
+    if((el = e.target.closest('[data-action="delete-demand"]'))){
+      handleDangerButton(el, 'Confirm delete?', async function(id){
+        await dataApi.deleteDemand(id);
+        closeDemandForm();
+        toast('Demand deleted');
+      });
+      return;
+    }
+  });
+
+  function handleDangerButton(btn, confirmLabel, onConfirm){
+    if(btn.getAttribute('data-armed') !== '1'){
+      btn.setAttribute('data-armed','1');
+      btn._origLabel = btn.textContent;
+      btn.textContent = confirmLabel;
+      setTimeout(function(){
+        if(btn.getAttribute('data-armed')==='1'){ btn.removeAttribute('data-armed'); btn.textContent = btn._origLabel; }
+      }, 3000);
+      return;
+    }
+    onConfirm(btn.getAttribute('data-id'));
+  }
+
+  // ---------- form submits ----------
+  document.getElementById('view').addEventListener('submit', function(e){
+    if(e.target.id === 'purchase-form'){
+      e.preventDefault();
+      var f = e.target.elements;
+      var data = {
+        date: f.date.value,
+        project: f.project.value.trim(),
+        thickness: parseFloat(f.thickness.value),
+        width: parseFloat(f.width.value),
+        length: parseFloat(f.plateLength.value),
+        qty: parseInt(f.qty.value,10),
+        supplier: f.supplier.value.trim(),
+        invoice: f.invoice.value.trim(),
+        notes: f.notes.value.trim(),
+        createdAt: new Date().toISOString()
+      };
+      if(!(data.thickness>0 && data.width>0 && data.length>0 && data.qty>=1 && data.project && data.date)){
+        toast('Please fill in all required fields'); return;
+      }
+      (async function(){
+        if(editingPurchaseId){ delete data.createdAt; await dataApi.updatePurchase(editingPurchaseId, data); toast('Purchase updated'); }
+        else { await dataApi.addPurchase(data); toast('Purchase added'); }
+        closePurchaseForm();
+      })();
+    }
+    else if(e.target.id === 'cut-form'){
+      e.preventDefault();
+      var f = e.target.elements;
+      var purchaseId = f.purchaseId.value;
+      var p = purchaseById(purchaseId);
+      var platesUsed = parseFloat(f.platesUsed.value);
+      var avail = p ? remainingFor(p, editingCutId) : Infinity;
+
+      var outputs = [];
+      document.querySelectorAll('#output-rows .output-row').forEach(function(row){
+        var cat = row.querySelector('.out-cat').value.trim();
+        var qty = parseFloat(row.querySelector('.out-qty').value);
+        var unit = row.querySelector('.out-unit').value;
+        if(cat && qty>0) outputs.push({category:cat, qty:qty, unit:unit});
+      });
+
+      if(!purchaseId || !platesUsed || platesUsed<=0){ toast('Select a batch and enter plates used'); return; }
+      if(platesUsed > avail){ toast('Only '+avail+' plates available in that batch'); return; }
+      if(!outputs.length){ toast('Add at least one material produced'); return; }
+
+      var data = {
+        date: f.date.value,
+        project: f.project.value.trim(),
+        purchaseId: purchaseId,
+        sourceSizeLabel: p ? sizeLabel(p) : '',
+        platesUsed: platesUsed,
+        outputs: outputs,
+        scrapWeightKg: f.scrapWeightKg.value ? parseFloat(f.scrapWeightKg.value) : null,
+        notes: f.notes.value.trim(),
+        createdAt: new Date().toISOString()
+      };
+      if(!data.project || !data.date){ toast('Please fill in date and project'); return; }
+
+      (async function(){
+        if(editingCutId){ delete data.createdAt; await dataApi.updateCut(editingCutId, data); toast('Cutting record updated'); }
+        else { await dataApi.addCut(data); toast('Cut logged'); }
+        closeCutForm();
+      })();
+    }
+    else if(e.target.id === 'demand-form'){
+      e.preventDefault();
+      var f = e.target.elements;
+      var data = {
+        project: f.project.value.trim(),
+        category: f.category.value.trim(),
+        thickness: f.thickness.value ? parseFloat(f.thickness.value) : null,
+        pieceWidth: f.pieceWidth.value ? parseFloat(f.pieceWidth.value) : null,
+        pieceLength: f.pieceLength.value ? parseFloat(f.pieceLength.value) : null,
+        qtyNeeded: parseInt(f.qtyNeeded.value,10),
+        dueDate: f.dueDate.value || null,
+        manualCompleted: f.manualCompleted.value ? parseFloat(f.manualCompleted.value) : 0,
+        notes: f.notes.value.trim(),
+        createdAt: new Date().toISOString()
+      };
+      if(!(data.project && data.category && data.qtyNeeded>=1)){
+        toast('Please fill in project, category and quantity needed'); return;
+      }
+      (async function(){
+        if(editingDemandId){ delete data.createdAt; await dataApi.updateDemand(editingDemandId, data); toast('Demand updated'); }
+        else { await dataApi.addDemand(data); toast('Demand added'); }
+        closeDemandForm();
+      })();
+    }
+  });
+
+  // ---------- installable app (Android/Chrome "Add to Home screen") ----------
+  var deferredInstallPrompt = null;
+  function isStandalone(){
+    return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+  }
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('sw.js').catch(function(){});
+    });
+  }
+  window.addEventListener('beforeinstallprompt', function(e){
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    var btn = document.getElementById('install-btn');
+    if(btn && !isStandalone()) btn.hidden = false;
+  });
+  window.addEventListener('appinstalled', function(){
+    var btn = document.getElementById('install-btn');
+    if(btn) btn.hidden = true;
+    deferredInstallPrompt = null;
+    toast('Installed — find Plate Ledger on your home screen');
+  });
+  var installBtn = document.getElementById('install-btn');
+  if(installBtn){
+    installBtn.addEventListener('click', async function(){
+      if(!deferredInstallPrompt) return;
+      installBtn.hidden = true;
+      deferredInstallPrompt.prompt();
+      try{ await deferredInstallPrompt.userChoice; }catch(e){}
+      deferredInstallPrompt = null;
+    });
+  }
+
+  // ---------- boot ----------
+  renderHome();
+  initData();
+
+})();
+</script>
